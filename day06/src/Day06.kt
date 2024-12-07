@@ -1,6 +1,24 @@
 import java.io.File
 
-data class Point2D(val x: Int, val y: Int)
+data class Point2D(val x: Int, val y: Int) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as Point2D
+
+        if (x != other.x) return false
+        if (y != other.y) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = x
+        result = 31 * result + y
+        return result
+    }
+}
 
 enum class Direction { UP, RIGHT, DOWN, LEFT }
 
@@ -25,16 +43,21 @@ class Day06(file: String) {
         return Point2D(-1, -1) // not found
     }
 
-    fun part1(): Int {
-        val agentStartPos = locateAgent()
-        val agentStartDirection = Direction.UP
+    data class WalkResult(val visited: Int, val iterations: Int)
 
-        var pos = agentStartPos
-        var direction = agentStartDirection
+    private fun walkMap(
+        agentPos: Point2D,
+        agentDirection: Direction,
+        maxIterations: Int = 100000,
+        extraObstacle: Point2D? = null
+    ): WalkResult {
+        var pos = agentPos
+        var direction = agentDirection
 
         val visited = mutableSetOf<Point2D>()
         visited.add(pos)
 
+        var iteration = 0
         do {
             val nextPos = when (direction) {
                 Direction.UP -> Point2D(pos.x, pos.y - 1)
@@ -48,7 +71,7 @@ class Day06(file: String) {
                 break
             }
 
-            if (getMapAt(nextPos) == '#') {
+            if (extraObstacle == nextPos || (getMapAt(nextPos) == '#')) {
                 // collision, so rotate right instead of moving
                 direction = when (direction) {
                     Direction.UP -> Direction.RIGHT
@@ -61,13 +84,34 @@ class Day06(file: String) {
                 pos = nextPos
                 visited.add(pos)
             }
-        } while (true)
+            iteration++
+        } while (iteration < maxIterations)
 
-        return visited.size
+        return WalkResult(visited.size, iteration)
+    }
+
+    fun part1(): Int {
+        return walkMap(locateAgent(), Direction.UP).visited
     }
 
     fun part2(): Int {
-        return 0
+        val maxIterations = 10000
+        val locations = mutableSetOf<Point2D>()
+
+        val agentPos = locateAgent()
+
+        for (y in 0..<height) {
+            for (x in 0..<width) {
+                val obstacleLocation = Point2D(x, y)
+
+                if (walkMap(agentPos, Direction.UP, maxIterations, obstacleLocation).iterations == maxIterations) {
+                    // walked in a loop
+                    locations.add(obstacleLocation)
+                }
+            }
+        }
+
+        return locations.size
     }
 }
 
