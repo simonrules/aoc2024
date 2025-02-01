@@ -9,6 +9,8 @@ data class PrizeMachine(
 
 class Day13(private val file: String) {
     private val machines = readInput()
+    private val aCost = 3
+    private val bCost = 1
 
     private fun readInput(): List<PrizeMachine> {
         val regex = ".+: X.(\\d+), Y.(\\d+)".toRegex()
@@ -62,18 +64,8 @@ class Day13(private val file: String) {
         return matches.toList()
     }
 
-    private fun cost(a: Int, b: Int, aCost: Int, bCost: Int): Int {
+    private fun cost(a: Long, b: Long): Long {
         return a * aCost + b * bCost
-    }
-
-    private fun lowestCost(cands: List<Pair<Int, Int>>, aCost: Int, bCost: Int): Int? {
-        val best = cands.minByOrNull { cost(it.first, it.second, aCost, bCost) }
-
-        return if (best == null) {
-            null
-        } else {
-            cost(best.first, best.second, aCost, bCost)
-        }
     }
 
     fun part1(): Int {
@@ -81,18 +73,55 @@ class Day13(private val file: String) {
         machines.forEach { m ->
             val candidates = findCandidates(m.distA.x, m.distB.x, m.prize.x)
             val verified = verifyCandidates(m.distA.y, m.distB.y, m.prize.y, candidates)
-            val cost = lowestCost(verified, 3, 1)
-            if (cost != null) {
-                sum += cost
+            if (verified.isNotEmpty()) {
+                sum += cost(verified.first().first.toLong(), verified.first().second.toLong()).toInt()
             }
         }
 
         return sum
     }
 
-    fun part2(): Long {
+    private fun solveSimultaneous(m: PrizeMachine): Pair<Long, Long>? {
         val offset = 10000000000000L
-        return 0L
+
+        // e.g. 94a + 22b = 8400 (*67)
+        val xa = m.distA.x.toLong()
+        val xb = m.distB.x.toLong()
+        val xt = m.prize.x + offset
+
+        // e.g. 34a + 67b = 5400 (*22)
+        val ya = m.distA.y.toLong()
+        val yb = m.distB.y.toLong()
+        val yt = m.prize.y + offset
+
+        val xaa = xa * yb
+        val xtt = xt * yb
+
+        val yaa = ya * xb
+        val ytt = yt * xb
+
+        val a = (xtt - ytt) / (xaa - yaa)
+        val aRem = (xtt - ytt) % (xaa - yaa)
+        val b = (xt - (xa * a)) / xb
+        val bRem = (xt - (xa * a)) % xb
+
+        return if (aRem == 0L && bRem == 0L) {
+            Pair(a, b)
+        } else {
+            null
+        }
+    }
+
+    fun part2(): Long {
+        var sum = 0L
+        machines.forEach { m ->
+            val solution = solveSimultaneous(m)
+            if (solution != null) {
+                sum += cost(solution.first, solution.second)
+            }
+        }
+
+        return sum
     }
 }
 
